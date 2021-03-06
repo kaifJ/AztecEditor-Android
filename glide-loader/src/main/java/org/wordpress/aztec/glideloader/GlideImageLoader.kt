@@ -6,21 +6,50 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.DisplayMetrics
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.model.GlideUrl
+import com.bumptech.glide.load.model.Headers
+import com.bumptech.glide.load.model.LazyHeaders
 import com.bumptech.glide.request.Request
 import com.bumptech.glide.request.target.SizeReadyCallback
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.Transition
 import org.wordpress.aztec.Html
 import org.wordpress.aztec.glideloader.extensions.upscaleTo
+import java.io.File
+import java.io.FileOutputStream
+import java.lang.Exception
+import java.net.URL
 
-class GlideImageLoader(private val context: Context) : Html.ImageGetter {
+class GlideImageLoader(private val context: Context, val customProps: HashMap<Any, Any>) : Html.ImageGetter {
 
     override fun loadImage(source: String, callbacks: Html.ImageGetter.Callbacks, maxWidth: Int) {
         loadImage(source, callbacks, maxWidth, 0)
     }
 
     override fun loadImage(source: String, callbacks: Html.ImageGetter.Callbacks, maxWidth: Int, minWidth: Int) {
-        Glide.with(context).asBitmap().load(source).into(object : Target<Bitmap> {
+        val headerBuilder = LazyHeaders.Builder()
+
+        //add headers to GlideURl only if image is not already downloaded
+        val imageFile = File(source)
+        var glideURL: Any? = null
+        var createGlideURL = false
+
+        if(source.contains("file://", ignoreCase = false)){
+            source = source.replace("file://", "")
+        }
+
+        if(! imageFile.exists() && customProps.containsKey(("headers"))){
+            val headerProps = customProps.get("headers") as HashMap<Any, Any>
+            for((key, value) in headerProps){
+                headerBuilder.addHeader(""+key, ""+ value)
+            }
+
+           glideURL = GlideUrl(source, headerBuilder.build())
+        }else{
+            glideURL = source
+        }
+
+        Glide.with(context).asBitmap().load(glideURL).into(object : Target<Bitmap> {
             override fun onLoadStarted(placeholder: Drawable?) {
                 callbacks.onImageLoading(placeholder)
             }
@@ -39,6 +68,24 @@ class GlideImageLoader(private val context: Context) : Html.ImageGetter {
                 // By default, BitmapFactory.decodeFile sets the bitmap's density to the device default so, we need
                 // to correctly set the input density to 160 ourselves.
                 resource.density = DisplayMetrics.DENSITY_DEFAULT
+
+                if(imageFile.exists()){
+                    return callbacks.onImageLoaded(BitmapDrawable(context.resources, resource))
+                }
+
+                val destinationPath = context.filesDir.absolutePath + "/RTF/"
+                var file = File(destinationPath)
+                if(!file.exists()){
+                    file.mkdirs()
+                }
+                file = File(destinationPath, URL(source).path.replace("/", "")+"")
+                try {
+                    val out = FileOutputStream(file)
+                    resource.compress(Bitmap.CompressFormat.PNG, 90, out)
+                    out.flush()
+                    out.close()
+                } catch(e: Exception){}
+
                 callbacks.onImageLoaded(BitmapDrawable(context.resources, resource))
             }
 
