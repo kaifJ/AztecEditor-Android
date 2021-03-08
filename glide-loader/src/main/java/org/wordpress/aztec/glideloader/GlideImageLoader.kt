@@ -34,10 +34,6 @@ class GlideImageLoader(private val context: Context, val customProps: HashMap<An
         var glideURL: Any? = null
         var createGlideURL = false
 
-        if(source.contains("file://", ignoreCase = false)){
-            source = source.replace("file://", "")
-        }
-
         if(! imageFile.exists() && customProps.containsKey(("headers"))){
             val headerProps = customProps.get("headers") as HashMap<Any, Any>
             for((key, value) in headerProps){
