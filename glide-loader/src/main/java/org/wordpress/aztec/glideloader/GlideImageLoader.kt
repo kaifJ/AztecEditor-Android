@@ -30,7 +30,12 @@ class GlideImageLoader(private val context: Context, val customProps: HashMap<An
         val headerBuilder = LazyHeaders.Builder()
 
         //add headers to GlideURl only if image is not already downloaded
-        val imageFile = File(source)
+        var _source = source
+
+        if(_source.contains("file://", ignoreCase = false)){
+            _source = _source.replace("file://", "")
+        }
+        val imageFile = File(_source)
         var glideURL: Any? = null
         var createGlideURL = false
 
